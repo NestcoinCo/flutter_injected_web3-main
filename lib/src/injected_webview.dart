@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
@@ -314,108 +315,147 @@ class InjectedWebview extends StatefulWidget {
 
 class _InjectedWebviewState extends State<InjectedWebview> {
   String address = "";
+
+  bool isLoadJs = false;
+  String? jsProviderScript;
+  @override
+  void initState() {
+    super.initState();
+    _loadWeb3();
+  }
+
+  ///Load provider initial web3 to inject web app
+  Future<void> _loadWeb3() async {
+    String? web3;
+    String path = "packages/flutter_injected_web3/assets/provider.min.js";
+    web3 = await DefaultAssetBundle.of(context).loadString(path);
+    if (mounted) {
+      setState(() {
+        jsProviderScript = web3;
+        isLoadJs = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InAppWebView(
-      windowId: widget.windowId,
-      initialUrlRequest: widget.initialUrlRequest,
-      initialFile: widget.initialFile,
-      initialData: widget.initialData,
-      initialSettings: widget.initialSettings,
-      initialUserScripts: widget.initialUserScripts,
-      pullToRefreshController: widget.pullToRefreshController,
-      contextMenu: widget.contextMenu,
-      onWebViewCreated: widget.onWebViewCreated,
-      onLoadStart: (controller, uri) async {
-        widget.onLoadStart?.call(controller, uri);
-        _initWeb3(controller, false);
-        widget.initialized = true;
-      },
-      onLoadStop: (controller, uri) async {
-        _initWeb3(controller, true);
+    return isLoadJs == false
+        ? Container()
+        : InAppWebView(
+            windowId: widget.windowId,
+            initialUrlRequest: widget.initialUrlRequest,
+            initialFile: widget.initialFile,
+            initialData: widget.initialData,
+            initialSettings: widget.initialSettings,
+            initialUserScripts: UnmodifiableListView([
+              UserScript(
+                source: jsProviderScript ?? '',
+                injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              ),
+              UserScript(
+                source: address.isNotEmpty
+                    ? _loadReInt(widget.chainId, widget.rpc, address)
+                    : _loadInitJs(widget.chainId, widget.rpc),
+                injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              ),
+            ]),
+            pullToRefreshController: widget.pullToRefreshController,
+            contextMenu: widget.contextMenu,
+            onWebViewCreated: widget.onWebViewCreated,
+            onLoadStart: (controller, uri) async {
+              widget.onLoadStart?.call(controller, uri);
+              _initWeb3(controller, false);
+              widget.initialized = true;
+            },
+            onLoadStop: (controller, uri) async {
+              _initWeb3(controller, true);
 
-        widget.onLoadStop?.call(controller, uri);
-      },
-      onReceivedError: widget.onReceivedError,
-      onReceivedHttpError: widget.onReceivedHttpError,
-      onConsoleMessage: (
-        controller,
-        consoleMessage,
-      ) {
-        if (widget.isDebug) {
-          print("Console Message: ${consoleMessage.message}");
-        }
-        widget.onConsoleMessage?.call(
-          controller,
-          consoleMessage,
-        );
-      },
-      onProgressChanged: (controller, progress) async {
-        _initWeb3(controller, true);
+              widget.onLoadStop?.call(controller, uri);
+            },
+            onReceivedError: widget.onReceivedError,
+            onReceivedHttpError: widget.onReceivedHttpError,
+            onConsoleMessage: (
+              controller,
+              consoleMessage,
+            ) {
+              if (widget.isDebug) {
+                print("Console Message: ${consoleMessage.message}");
+              }
+              widget.onConsoleMessage?.call(
+                controller,
+                consoleMessage,
+              );
+            },
+            onProgressChanged: (controller, progress) async {
+              _initWeb3(controller, true);
 
-        widget.onProgressChanged?.call(controller, progress);
-      },
-      shouldOverrideUrlLoading: widget.shouldOverrideUrlLoading,
-      onLoadResource: widget.onLoadResource,
-      onScrollChanged: widget.onScrollChanged,
-      onDownloadStartRequest: widget.onDownloadStartRequest,
-      onLoadResourceWithCustomScheme: widget.onLoadResourceCustomScheme,
-      onCreateWindow: widget.onCreateWindow,
-      onCloseWindow: widget.onCloseWindow,
-      onJsAlert: widget.onJsAlert,
-      onJsConfirm: widget.onJsConfirm,
-      onJsPrompt: widget.onJsPrompt,
-      onReceivedHttpAuthRequest: widget.onReceivedHttpAuthRequest,
-      onReceivedServerTrustAuthRequest: widget.onReceivedServerTrustAuthRequest,
-      onReceivedClientCertRequest: widget.onReceivedClientCertRequest,
-      findInteractionController: widget.findInteractionController,
-      shouldInterceptAjaxRequest: widget.shouldInterceptAjaxRequest,
-      onAjaxReadyStateChange: widget.onAjaxReadyStateChange,
-      onAjaxProgress: widget.onAjaxProgress,
-      shouldInterceptFetchRequest: widget.shouldInterceptFetchRequest,
-      onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
-      onLongPressHitTestResult: widget.onLongPressHitTestResult,
-      onEnterFullscreen: widget.onEnterFullscreen,
-      onExitFullscreen: widget.onExitFullscreen,
-      onPageCommitVisible: widget.onPageCommitVisible,
-      onTitleChanged: widget.onTitleChanged,
-      onWindowFocus: widget.onWindowFocus,
-      onWindowBlur: widget.onWindowBlur,
-      onOverScrolled: widget.onOverScrolled,
-      onZoomScaleChanged: widget.onZoomScaleChanged,
-      onSafeBrowsingHit: widget.onSafeBrowsingHit,
-      onPermissionRequest: widget.androidOnPermissionRequest,
-      onGeolocationPermissionsShowPrompt:
-          widget.onGeolocationPermissionsShowPrompt,
-      onGeolocationPermissionsHidePrompt:
-          widget.onGeolocationPermissionsHidePrompt,
-      shouldInterceptRequest: widget.shouldInterceptRequest,
-      onRenderProcessGone: widget.onRenderProcessGone,
-      onRenderProcessResponsive: widget.onRenderProcessResponsive,
-      onRenderProcessUnresponsive: widget.onRenderProcessUnresponsive,
-      onFormResubmission: widget.onFormResubmission,
-      onReceivedIcon: widget.onReceivedIcon,
-      onReceivedTouchIconUrl: widget.onReceivedTouchIconUrl,
-      onJsBeforeUnload: widget.onJsBeforeUnload,
-      onReceivedLoginRequest: widget.onReceivedLoginRequest,
-      onWebContentProcessDidTerminate: widget.onWebContentProcessDidTerminate,
-      onDidReceiveServerRedirectForProvisionalNavigation:
-          widget.onDidReceiveServerRedirectForProvisionalNavigation,
-      onNavigationResponse: widget.onNavigationResponse,
-      shouldAllowDeprecatedTLS: widget.shouldAllowDeprecatedTLS,
-      gestureRecognizers: widget.gestureRecognizers,
-    );
+              widget.onProgressChanged?.call(controller, progress);
+            },
+            shouldOverrideUrlLoading: widget.shouldOverrideUrlLoading,
+            onLoadResource: widget.onLoadResource,
+            onScrollChanged: widget.onScrollChanged,
+            onDownloadStartRequest: widget.onDownloadStartRequest,
+            onLoadResourceWithCustomScheme: widget.onLoadResourceCustomScheme,
+            onCreateWindow: widget.onCreateWindow,
+            onCloseWindow: widget.onCloseWindow,
+            onJsAlert: widget.onJsAlert,
+            onJsConfirm: widget.onJsConfirm,
+            onJsPrompt: widget.onJsPrompt,
+            onReceivedHttpAuthRequest: widget.onReceivedHttpAuthRequest,
+            onReceivedServerTrustAuthRequest:
+                widget.onReceivedServerTrustAuthRequest,
+            onReceivedClientCertRequest: widget.onReceivedClientCertRequest,
+            findInteractionController: widget.findInteractionController,
+            shouldInterceptAjaxRequest: widget.shouldInterceptAjaxRequest,
+            onAjaxReadyStateChange: widget.onAjaxReadyStateChange,
+            onAjaxProgress: widget.onAjaxProgress,
+            shouldInterceptFetchRequest: widget.shouldInterceptFetchRequest,
+            onUpdateVisitedHistory: widget.onUpdateVisitedHistory,
+            onLongPressHitTestResult: widget.onLongPressHitTestResult,
+            onEnterFullscreen: widget.onEnterFullscreen,
+            onExitFullscreen: widget.onExitFullscreen,
+            onPageCommitVisible: widget.onPageCommitVisible,
+            onTitleChanged: widget.onTitleChanged,
+            onWindowFocus: widget.onWindowFocus,
+            onWindowBlur: widget.onWindowBlur,
+            onOverScrolled: widget.onOverScrolled,
+            onZoomScaleChanged: widget.onZoomScaleChanged,
+            onSafeBrowsingHit: widget.onSafeBrowsingHit,
+            onPermissionRequest: widget.androidOnPermissionRequest,
+            onGeolocationPermissionsShowPrompt:
+                widget.onGeolocationPermissionsShowPrompt,
+            onGeolocationPermissionsHidePrompt:
+                widget.onGeolocationPermissionsHidePrompt,
+            shouldInterceptRequest: widget.shouldInterceptRequest,
+            onRenderProcessGone: widget.onRenderProcessGone,
+            onRenderProcessResponsive: widget.onRenderProcessResponsive,
+            onRenderProcessUnresponsive: widget.onRenderProcessUnresponsive,
+            onFormResubmission: widget.onFormResubmission,
+            onReceivedIcon: widget.onReceivedIcon,
+            onReceivedTouchIconUrl: widget.onReceivedTouchIconUrl,
+            onJsBeforeUnload: widget.onJsBeforeUnload,
+            onReceivedLoginRequest: widget.onReceivedLoginRequest,
+            onWebContentProcessDidTerminate:
+                widget.onWebContentProcessDidTerminate,
+            onDidReceiveServerRedirectForProvisionalNavigation:
+                widget.onDidReceiveServerRedirectForProvisionalNavigation,
+            onNavigationResponse: widget.onNavigationResponse,
+            shouldAllowDeprecatedTLS: widget.shouldAllowDeprecatedTLS,
+            gestureRecognizers: widget.gestureRecognizers,
+          );
   }
 
   _initWeb3(InAppWebViewController controller, bool reInit) async {
-    await controller.injectJavascriptFileFromAsset(
-        assetFilePath: "packages/flutter_injected_web3/assets/provider.min.js");
-
-    String initJs = reInit
-        ? _loadReInt(widget.chainId, widget.rpc, address)
-        : _loadInitJs(widget.chainId, widget.rpc);
-    debugPrint("RPC: ${widget.rpc}");
-    await controller.evaluateJavascript(source: initJs);
+    if (Platform.isAndroid) {
+      await controller.injectJavascriptFileFromAsset(
+          assetFilePath:
+              "packages/flutter_injected_web3/assets/provider.min.js");
+      String initJs = reInit
+          ? _loadReInt(widget.chainId, widget.rpc, address)
+          : _loadInitJs(widget.chainId, widget.rpc);
+      debugPrint("RPC: ${widget.rpc}");
+      await controller.evaluateJavascript(source: initJs);
+    }
     if (!controller.hasJavaScriptHandler(handlerName: "OrangeHandler")) {
       controller.addJavaScriptHandler(
           handlerName: "OrangeHandler",

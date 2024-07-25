@@ -9,7 +9,7 @@ environment:
 
 
 dependencies:
-  flutter_inappwebview: ^6.0.0-beta.27
+  flutter_inappwebview: 6.0.0
   flutter:
     sdk: flutter
 dev_dependencies:
