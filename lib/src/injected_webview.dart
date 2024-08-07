@@ -7,6 +7,7 @@ import 'package:flutter_injected_web3/src/js_callback_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ignore: must_be_immutable
 class InjectedWebview extends StatefulWidget {
@@ -318,6 +319,7 @@ class _InjectedWebviewState extends State<InjectedWebview> {
 
   bool isLoadJs = false;
   String? jsProviderScript;
+  String? currentURL;
   @override
   void initState() {
     super.initState();
@@ -329,10 +331,16 @@ class _InjectedWebviewState extends State<InjectedWebview> {
     String? web3;
     String path = "packages/flutter_injected_web3/assets/provider.min.js";
     web3 = await DefaultAssetBundle.of(context).loadString(path);
+
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    currentURL = widget.initialUrlRequest?.url.toString();
+    String? savedAddress = prefs.getString('account_address_$currentURL');
+
     if (mounted) {
       setState(() {
         jsProviderScript = web3;
         isLoadJs = true;
+        address = savedAddress ?? "";
       });
     }
   }
@@ -580,6 +588,12 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                           "window.ethereum.sendResponse(${jsData.id}, [\"${signedData.address}\"])";
                       await _sendCustomResponse(controller, setAddress);
                       await _sendCustomResponse(controller, callback);
+                      currentURL = (await controller.getUrl()).toString();
+                      // Save address to SharedPreferences with the dApp URL
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      await prefs.setString(
+                          'account_address_$currentURL', signedData.address!);
 
                       if (widget.chainId != signedData.chainId) {
                         final initString = _addChain(
