@@ -372,12 +372,15 @@ class _InjectedWebviewState extends State<InjectedWebview> {
             onWebViewCreated: widget.onWebViewCreated,
             onLoadStart: (controller, uri) async {
               widget.onLoadStart?.call(controller, uri);
-              _initWeb3(controller, false);
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              currentURL = widget.initialUrlRequest?.url.toString();
+              String? savedAddress =
+                  prefs.getString('account_address_$currentURL') ?? "";
+              _initWeb3(controller, savedAddress.isNotEmpty);
               widget.initialized = true;
             },
             onLoadStop: (controller, uri) async {
               _initWeb3(controller, true);
-
               widget.onLoadStop?.call(controller, uri);
             },
             onReceivedError: widget.onReceivedError,
